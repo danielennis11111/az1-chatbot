@@ -5,14 +5,9 @@ export interface Message {
   createdAt: Date
 }
 
-export type ChatSession = {
+export interface ConsentRequest {
   id: string
-  messages: Message[]
-  createdAt: Date
-  updatedAt: Date
-}
-
-export type ConsentStatus = {
+  message: string
   accepted: boolean
   timestamp?: Date
 }
@@ -29,11 +24,49 @@ export interface Resource {
 }
 
 export interface DigitalSkillsAssessment {
-  comfortLevel: 'none' | 'basic' | 'intermediate' | 'advanced'
+  id: string
+  userId?: string
+  currentStep: number
+  totalSteps: number
+  responses: AssessmentResponse[]
+  comfortLevel?: 'none' | 'basic' | 'intermediate' | 'advanced'
   deviceTypes: string[]
   primaryNeeds: string[]
   learningPreferences: string[]
   specificChallenges: string[]
+  isComplete: boolean
+  startedAt: Date
+  completedAt?: Date
+}
+
+export interface AssessmentResponse {
+  questionId: string
+  question: string
+  answer: string | string[]
+  timestamp: Date
+}
+
+export interface AssessmentQuestion {
+  id: string
+  step: number
+  category: 'basic-comfort' | 'device-experience' | 'internet-access' | 'digital-skills' | 'learning-goals' | 'barriers'
+  question: string
+  description?: string
+  type: 'single-choice' | 'multiple-choice' | 'scale' | 'open-text'
+  options?: AssessmentOption[]
+  validation?: {
+    required: boolean
+    minSelections?: number
+    maxSelections?: number
+  }
+}
+
+export interface AssessmentOption {
+  id: string
+  label: string
+  value: string
+  description?: string
+  followUpQuestion?: string
 }
 
 export interface ChatResponse {
@@ -41,4 +74,20 @@ export interface ChatResponse {
   resources?: Resource[]
   assessmentSuggestions?: string[]
   nextSteps?: string[]
+  shouldStartAssessment?: boolean
+  assessmentQuestion?: AssessmentQuestion
+}
+
+export interface ChatSession {
+  id: string
+  messages: Message[]
+  assessment?: DigitalSkillsAssessment
+  userProfile: {
+    skillLevel?: 'beginner' | 'intermediate' | 'advanced'
+    completedAssessment: boolean
+    primaryGoals: string[]
+    preferredTopics: string[]
+  }
+  startedAt: Date
+  lastActivity: Date
 } 

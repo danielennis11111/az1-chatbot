@@ -1,10 +1,19 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Message } from '@/types/chat'
-import { MessageCircle, Send, Loader2, AlertCircle, Info } from 'lucide-react'
+import { Message, DigitalSkillsAssessment, AssessmentQuestion } from '@/types/chat'
+import { MessageCircle, Send, Loader2, AlertCircle, Info, ChartBarIcon, UserIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
+import { AssessmentQuestionComponent } from './AssessmentQuestion'
+import { AssessmentProgress } from './AssessmentProgress'
+import { 
+  createAssessment, 
+  getNextQuestion, 
+  processAssessmentResponse, 
+  getAssessmentProgress, 
+  generateAssessmentRecommendations 
+} from '@/lib/assessment'
 
 // Add some initial messages to guide the user
 const CONVERSATION_STARTERS = [
@@ -23,6 +32,10 @@ const CONVERSATION_STARTERS = [
   {
     text: "My internet isn't working properly, what can I do?",
     category: "troubleshooting"
+  },
+  {
+    text: "Take a digital skills assessment to get personalized help",
+    category: "assessment"
   }
 ]
 
@@ -35,6 +48,13 @@ export function Chat() {
   const [consentStatus, setConsentStatus] = useState<'pending' | 'accepted' | 'declined'>('pending')
   const [error, setError] = useState<string | null>(null)
   const [cooldownTime, setCooldownTime] = useState<number | null>(null)
+  
+  // Assessment state
+  const [isInAssessment, setIsInAssessment] = useState(false)
+  const [currentAssessment, setCurrentAssessment] = useState<DigitalSkillsAssessment | null>(null)
+  const [currentQuestion, setCurrentQuestion] = useState<AssessmentQuestion | null>(null)
+  const [assessmentLoading, setAssessmentLoading] = useState(false)
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -43,7 +63,7 @@ export function Chat() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, currentQuestion])
 
   // Reset error when user starts typing
   useEffect(() => {
@@ -69,9 +89,110 @@ export function Chat() {
     return () => clearInterval(interval)
   }, [cooldownTime])
 
+  const startAssessment = () => {
+    const assessment = createAssessment()
+    const firstQuestion = getNextQuestion(assessment)
+    
+    setCurrentAssessment(assessment)
+    setCurrentQuestion(firstQuestion)
+    setIsInAssessment(true)
+    
+    // Add a welcome message for the assessment
+    const welcomeMessage: Message = {
+      id: Date.now().toString(),
+      content: "Great! I'd love to learn more about your digital skills and goals so I can provide the best help for you. This quick assessment will take about 3-5 minutes. Let's get started!",
+      role: 'assistant',
+      createdAt: new Date(),
+    }
+    setMessages(prev => [...prev, welcomeMessage])
+  }
+
+  const handleAssessmentAnswer = async (answer: string | string[]) => {
+    if (!currentAssessment || !currentQuestion) return
+
+    setAssessmentLoading(true)
+
+    try {
+      // Process the response
+      const updatedAssessment = processAssessmentResponse(
+        currentAssessment,
+        currentQuestion.id,
+        answer
+      )
+
+      setCurrentAssessment(updatedAssessment)
+
+      // Add user's answer to chat
+      const userAnswerText = Array.isArray(answer) 
+        ? answer.length === 1 
+          ? answer[0] 
+          : answer.join(', ')
+        : answer
+
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content: `**${currentQuestion.question}**\n\n${userAnswerText}`,
+        role: 'user',
+        createdAt: new Date(),
+      }
+      setMessages(prev => [...prev, userMessage])
+
+      // Check if assessment is complete
+      if (updatedAssessment.isComplete) {
+        setIsInAssessment(false)
+        setCurrentQuestion(null)
+
+        // Generate recommendations
+        const recommendations = generateAssessmentRecommendations(updatedAssessment)
+        
+        const completionMessage: Message = {
+          id: Date.now().toString(),
+          content: `🎉 **Assessment Complete!** Thank you for sharing that information with me.\n\n**Your Digital Skills Level:** ${recommendations.skillLevel.charAt(0).toUpperCase() + recommendations.skillLevel.slice(1)}\n\n**Here's what I recommend for you:**\n\n${recommendations.nextSteps.map(step => `• ${step}`).join('\n')}\n\n**Helpful Resources:**\n${recommendations.recommendedResources.map(resource => `• ${resource}`).join('\n')}\n\nFeel free to ask me about any of these topics, or let me know what specific help you'd like!`,
+          role: 'assistant',
+          createdAt: new Date(),
+        }
+        setMessages(prev => [...prev, completionMessage])
+      } else {
+        // Get next question
+        const nextQuestion = getNextQuestion(updatedAssessment)
+        setCurrentQuestion(nextQuestion)
+
+        // Add encouraging message
+        const encouragementMessages = [
+          "Thanks for that! Let's continue...",
+          "Perfect! Next question:",
+          "Got it! Moving on:",
+          "Excellent! One more question:",
+        ]
+        const randomMessage = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)]
+        
+        const encouragementMsg: Message = {
+          id: Date.now().toString(),
+          content: randomMessage,
+          role: 'assistant',
+          createdAt: new Date(),
+        }
+        setMessages(prev => [...prev, encouragementMsg])
+      }
+    } catch (error) {
+      console.error('Assessment error:', error)
+      setError('There was an issue processing your response. Please try again.')
+    } finally {
+      setAssessmentLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading || consentStatus === 'pending' || cooldownTime) return
+    if (!input.trim() || isLoading || consentStatus === 'pending' || cooldownTime || isInAssessment) return
+
+    // Check if user wants to start assessment
+    if (input.toLowerCase().includes('assessment') || input.toLowerCase().includes('skills') || 
+        input.toLowerCase().includes('evaluate') || input.toLowerCase().includes('test my')) {
+      startAssessment()
+      setInput('')
+      return
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -86,7 +207,6 @@ export function Chat() {
     setError(null)
 
     try {
-      console.log('Sending message:', userMessage)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +226,6 @@ export function Chat() {
       }
 
       const data = await response.json()
-      console.log('Received response:', data)
 
       const assistantMessage: Message = {
         id: Date.now().toString(),
@@ -117,7 +236,6 @@ export function Chat() {
 
       setMessages(prev => [...prev, assistantMessage])
 
-      // If we got remaining requests info, show a warning when low
       if (data.remainingRequests && data.remainingRequests < 10) {
         setError(`Note: Only ${data.remainingRequests} requests remaining in this hour.`)
       }
@@ -129,20 +247,34 @@ export function Chat() {
     }
   }
 
+  const handleStarterClick = (starterText: string) => {
+    if (starterText.includes('assessment')) {
+      startAssessment()
+    } else {
+      setInput(starterText)
+    }
+  }
+
   if (consentStatus === 'pending') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-6 bg-white rounded-lg shadow-lg">
-        <h2 className="text-xl font-semibold mb-4">Welcome to Your Digital Navigator</h2>
-        <p className="text-gray-600 mb-6 text-center max-w-md">
-          I'm here to help you learn about broadband internet, digital literacy, and technology - no matter your experience level. Whether you're just getting started or need specific technical help, I'll guide you step by step.
+      <div className="flex flex-col items-center justify-center min-h-[500px] p-6 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl shadow-xl">
+        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6">
+          <UserIcon className="w-8 h-8 text-white" />
+        </div>
+        
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 text-center">
+          Welcome to Your Digital Navigator
+        </h2>
+        <p className="text-lg text-gray-600 mb-8 text-center max-w-2xl leading-relaxed">
+          I'm here to help you learn about broadband internet, digital literacy, and technology - no matter your experience level. Whether you're just getting started or need specific technical help, I'll guide you step by step with patience and understanding.
         </p>
         
-        <div className="bg-blue-50 text-blue-700 p-4 rounded-lg mb-6 flex items-start gap-3 max-w-md">
-          <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <div className="bg-white/80 backdrop-blur-sm border border-blue-200 rounded-xl p-6 mb-8 flex items-start gap-4 max-w-2xl">
+          <Info className="w-6 h-6 flex-shrink-0 mt-1 text-blue-600" />
           <div>
-            <p className="text-sm font-medium mb-2">About Data Collection</p>
-            <p className="text-sm">
-              We can collect chat data to improve our service. You can choose to share your data or use the chatbot without data collection.
+            <p className="font-semibold text-gray-900 mb-2">About Data Collection</p>
+            <p className="text-gray-700 text-sm leading-relaxed">
+              We can collect chat data to improve our service and provide better assistance. You can choose to share your data or use the chatbot without data collection - both options work perfectly.
             </p>
           </div>
         </div>
@@ -150,68 +282,113 @@ export function Chat() {
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
           <button
             onClick={() => setConsentStatus('accepted')}
-            className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex-1 bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
           >
-            Accept Data Collection
+            Accept & Continue
           </button>
           <button
             onClick={() => setConsentStatus('declined')}
-            className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
+            className="flex-1 bg-white text-gray-700 border-2 border-gray-300 px-8 py-4 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
           >
-            Decline & Continue
+            Continue Without Data Sharing
           </button>
         </div>
         
-        <p className="text-xs text-gray-500 mt-4 max-w-md text-center">
-          By continuing, you agree to our <a href="#" className="underline">Terms of Service</a> and <a href="#" className="underline">Privacy Policy</a>.
+        <p className="text-xs text-gray-500 mt-6 max-w-2xl text-center">
+          By continuing, you agree to our <a href="#" className="underline text-blue-600">Terms of Service</a> and <a href="#" className="underline text-blue-600">Privacy Policy</a>.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-white rounded-lg shadow-lg">
-      <div className="flex items-center justify-between p-4 border-b">
+    <div className="flex flex-col h-[700px] bg-white rounded-2xl shadow-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 md:p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
         <div className="flex items-center">
-          <MessageCircle className="w-6 h-6 text-blue-600 mr-2" />
-          <h2 className="text-lg font-semibold">AZ-1 Broadband Information</h2>
+          <MessageCircle className="w-6 h-6 mr-3" />
+          <div>
+            <h2 className="text-lg font-semibold">Arizona Digital Navigator</h2>
+            <p className="text-sm text-blue-100">Your guide to digital literacy & broadband</p>
+          </div>
         </div>
         {consentStatus === 'declined' && (
-          <div className="text-xs text-gray-500 flex items-center">
+          <div className="text-xs text-blue-100 flex items-center">
             <Info className="w-3 h-3 mr-1" />
-            Data collection disabled
+            Private mode
           </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && !isLoading ? (
-          <div className="space-y-4">
-            <div className="text-center text-gray-600 mb-6">
-              <h3 className="text-lg font-medium mb-2">Welcome! I'm here to help you with:</h3>
-              <p className="text-sm">Broadband information • Digital literacy • Technology basics • Arizona resources</p>
+      {/* Assessment Progress */}
+      {isInAssessment && currentAssessment && (
+        <div className="p-4 bg-blue-50 border-b">
+          <AssessmentProgress 
+            currentStep={currentAssessment.currentStep}
+            totalSteps={currentAssessment.totalSteps}
+          />
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+        {/* Assessment Question */}
+        {isInAssessment && currentQuestion && (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 md:p-8">
+            <AssessmentQuestionComponent
+              question={currentQuestion}
+              onAnswer={handleAssessmentAnswer}
+              isLoading={assessmentLoading}
+            />
+          </div>
+        )}
+
+        {/* Welcome State */}
+        {messages.length === 0 && !isLoading && !isInAssessment ? (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ChartBarIcon className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
+                Welcome! I'm here to help you with:
+              </h3>
+              <p className="text-gray-600 text-lg">
+                Broadband information • Digital literacy • Technology basics • Arizona resources
+              </p>
             </div>
             
-            <div className="grid grid-cols-1 gap-3">
-              <p className="text-sm text-gray-500 font-medium">Try asking about:</p>
+            <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
+              <p className="text-sm text-gray-500 font-medium mb-2">Try asking about:</p>
               {CONVERSATION_STARTERS.map((starter, index) => (
                 <button
                   key={index}
-                  onClick={() => setInput(starter.text)}
-                  className="text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+                  onClick={() => handleStarterClick(starter.text)}
+                  className={cn(
+                    "text-left p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-500/20",
+                    starter.category === 'assessment' 
+                      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:border-green-300 text-green-800"
+                      : "bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 text-blue-800"
+                  )}
                 >
-                  <span className="text-blue-700 text-sm">{starter.text}</span>
+                  <span className="font-medium">{starter.text}</span>
+                  {starter.category === 'assessment' && (
+                    <span className="block text-xs text-green-600 mt-1">
+                      Recommended for personalized guidance
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
             
-            <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-sm text-green-700">
-                <strong>Remember:</strong> No question is too basic! I'm here to help whether you're completely new to technology or looking for advanced information.
+            <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 max-w-2xl mx-auto">
+              <p className="text-green-800 leading-relaxed">
+                <strong>Remember:</strong> No question is too basic! I'm here to help whether you're completely new to technology or looking for advanced information. Take your time, and don't hesitate to ask for clarification.
               </p>
             </div>
           </div>
-        ) : (
+        ) : !isInAssessment ? (
+          /* Chat Messages */
           <>
             {messages.map((message) => (
               <div
@@ -223,19 +400,32 @@ export function Chat() {
               >
                 <div
                   className={cn(
-                    'max-w-[80%] rounded-lg p-4',
+                    'max-w-[85%] md:max-w-[80%] rounded-2xl p-4 md:p-5 shadow-sm',
                     message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-900 border border-gray-200'
                   )}
                 >
                   <ReactMarkdown
                     components={{
-                      p: ({ children }) => <p className="prose prose-sm">{children}</p>,
+                      p: ({ children }) => <p className="leading-relaxed">{children}</p>,
                       a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a 
+                          href={href} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className={cn(
+                            "underline hover:no-underline transition-all",
+                            message.role === 'user' ? "text-blue-100" : "text-blue-600"
+                          )}
+                        >
                           {children}
                         </a>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className={message.role === 'user' ? "text-blue-100" : "text-gray-900"}>
+                          {children}
+                        </strong>
                       )
                     }}
                   >
@@ -246,48 +436,52 @@ export function Chat() {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-lg p-4">
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                <div className="bg-gray-100 border border-gray-200 rounded-2xl p-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                 </div>
               </div>
             )}
           </>
-        )}
+        ) : null}
+
         {error && (
           <div className="flex justify-center">
-            <div className="bg-red-50 text-red-700 rounded-lg p-4 flex items-center gap-2 max-w-[80%]">
+            <div className="bg-red-50 text-red-700 rounded-2xl p-4 flex items-center gap-3 max-w-[85%] md:max-w-[80%] border border-red-200">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm">{error}</p>
+              <p className="text-sm leading-relaxed">{error}</p>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t">
-        <div className="flex space-x-4">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={cooldownTime ? "Please wait for the cooldown period..." : "Ask about broadband, technology, or digital literacy..."}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading || !!cooldownTime}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim() || !!cooldownTime}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-        {cooldownTime && (
-          <p className="text-sm text-gray-500 mt-2">
-            Cooldown: {Math.ceil(cooldownTime / 1000 / 60)} minutes remaining
-          </p>
-        )}
-      </form>
+      {/* Input Form - Hidden during assessment */}
+      {!isInAssessment && (
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 border-t bg-gray-50">
+          <div className="flex space-x-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={cooldownTime ? "Please wait for the cooldown period..." : "Ask about broadband, technology, or digital literacy..."}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              disabled={isLoading || !!cooldownTime}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim() || !!cooldownTime}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+          {cooldownTime && (
+            <p className="text-sm text-gray-500 mt-3 text-center">
+              Cooldown: {Math.ceil(cooldownTime / 1000 / 60)} minutes remaining
+            </p>
+          )}
+        </form>
+      )}
     </div>
   )
 } 
