@@ -4,7 +4,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { Document } from '@langchain/core/documents'
 import { promises as fs } from 'fs'
-import path from 'path'
+// Remove path import and use our own basename function
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -12,8 +12,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 // Use a consistent model name
 const MODEL_NAME = 'gemini-2.0-flash'
 
-// Directory for storing uploaded documents
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads')
+// Directory for storing uploaded documents - use string concatenation instead of path.join
+const UPLOADS_DIR = process.cwd() + '/uploads'
+
+// Simple utility function to get the basename of a path
+function getBasename(filepath: string): string {
+  const parts = filepath.split('/')
+  return parts[parts.length - 1]
+}
 
 // In-memory vector store for simplicity (would use a proper DB in production)
 let documents: Document[] = []
@@ -77,7 +83,7 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
  */
 export async function saveUploadedFile(fileName: string, fileBuffer: Buffer): Promise<string> {
   await ensureUploadsDir()
-  const filePath = path.join(UPLOADS_DIR, fileName)
+  const filePath = UPLOADS_DIR + '/' + fileName
   await fs.writeFile(filePath, fileBuffer)
   return filePath
 }
@@ -160,7 +166,7 @@ export async function addPdfFile(filePath: string): Promise<void> {
       await addDocument(extractedContent, {
         source: filePath,
         type: 'pdf',
-        filename: path.basename(filePath),
+        filename: getBasename(filePath),
       })
       
       console.log(`Added PDF file to knowledge base: ${filePath}`)
@@ -205,7 +211,7 @@ export async function addLargePdfFile(filePath: string, fileBuffer?: Buffer): Pr
     await addDocument(extractedContent, {
       source: filePath,
       type: 'pdf',
-      filename: path.basename(filePath),
+      filename: getBasename(filePath),
     })
     
     console.log(`Added large PDF file to knowledge base: ${filePath}`)
@@ -353,7 +359,7 @@ export async function initializeKnowledgeBase(): Promise<void> {
     const pdfFiles = (await getUploadedFiles()).filter(file => file.endsWith('.pdf'))
     for (const pdfFile of pdfFiles) {
       try {
-        await addPdfFile(path.join(UPLOADS_DIR, pdfFile))
+        await addPdfFile(UPLOADS_DIR + '/' + pdfFile)
       } catch (error) {
         console.error(`Error adding PDF ${pdfFile}:`, error)
       }

@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { streamChatResponse } from '@/lib/gemini'
 import { RateLimiter } from '@/lib/rateLimit'
 
-export const runtime = 'edge'
-
 export async function POST(req: Request) {
   try {
     const { messages, dataCollectionEnabled = false } = await req.json()

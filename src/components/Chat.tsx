@@ -294,7 +294,16 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                 })
               }
             } catch (e) {
-              console.error('Error parsing streaming data:', e)
+              console.error('Error parsing streaming data:', e, 'Raw data:', data)
+              
+              // If we can't parse the JSON, it might be an HTML error page
+              if (data.includes('<!DOCTYPE') || data.includes('<html')) {
+                setError('Server error occurred. Please try again later.')
+                // Remove the streaming message
+                setMessages(prev => prev.filter(msg => !msg.isStreaming))
+                done = true
+                break
+              }
             }
           }
         }
