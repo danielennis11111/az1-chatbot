@@ -1,48 +1,69 @@
 import { Chat } from '@/components/Chat'
 import { KnowledgeManager } from '@/components/KnowledgeManager'
+import { ChatEmbed } from '@/components/ChatEmbed'
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Arizona Digital Navigator
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Your helpful guide to broadband information, digital literacy, and technology resources in Arizona. 
-            We're here to help everyone - from complete beginners to advanced users - navigate the digital world.
-          </p>
+    <main className="min-h-screen bg-white">
+      {/* Example website content */}
+      <header className="bg-blue-600 text-white shadow-md">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold">Arizona Broadband</h1>
+          <p className="mt-2 text-blue-100">Connecting communities across the state</p>
         </div>
-        
-        <div className="space-y-8">
-          <Chat />
-          
-          <details className="group">
-            <summary className="flex cursor-pointer items-center justify-between rounded-lg bg-gray-100 p-4 text-lg font-medium text-gray-900">
-              <span>Knowledge Base Management</span>
-              <span className="shrink-0 rounded-full bg-white p-1.5 text-gray-900 sm:p-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 shrink-0 transition duration-300 group-open:-rotate-180"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </span>
-            </summary>
+      </header>
 
-            <div className="mt-4">
-              <KnowledgeManager />
-            </div>
-          </details>
+      <section className="container mx-auto px-4 py-12">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Welcome to AZ-1 Broadband Information</h2>
+          <p className="text-lg text-gray-700 mb-6">
+            This is an example website showcasing our embedded AI chatbot. The chatbot can help answer questions 
+            about broadband availability, digital literacy, and technology resources in Arizona.
+          </p>
+          <p className="text-lg text-gray-700 mb-6">
+            Click the chat icon in the bottom right corner to start a conversation with our Digital Navigator assistant.
+          </p>
+
+          <div className="bg-gray-100 p-6 rounded-lg shadow-sm mb-8">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">About Our Digital Navigator</h3>
+            <ul className="list-disc pl-6 space-y-2 text-gray-700">
+              <li>Get help with understanding broadband internet options</li>
+              <li>Learn about digital skills and resources</li>
+              <li>Find affordable internet programs in Arizona</li>
+              <li>Get technical support for common internet issues</li>
+              <li>Take a digital skills assessment for personalized recommendations</li>
+            </ul>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="bg-gray-50 py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
+            
+            <div className="space-y-4">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="font-semibold text-gray-800">What is broadband internet?</h3>
+                <p className="mt-2 text-gray-700">Broadband refers to high-speed internet access that is always on and faster than traditional dial-up access.</p>
+              </div>
+              
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="font-semibold text-gray-800">How can I find affordable internet in my area?</h3>
+                <p className="mt-2 text-gray-700">Our chatbot can help you find affordable options based on your location in Arizona, including special programs and discounts.</p>
+              </div>
+              
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="font-semibold text-gray-800">What is the Affordable Connectivity Program?</h3>
+                <p className="mt-2 text-gray-700">The Affordable Connectivity Program is a federal benefit that helps ensure households can afford the broadband they need for work, school, healthcare and more.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Chat embed component */}
+      <ChatEmbed />
     </main>
   )
 }

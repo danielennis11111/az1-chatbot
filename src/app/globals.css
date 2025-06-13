@@ -24,3 +24,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Chat embed styles */
+body.chat-open {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  body.chat-open {
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Animation for chat button */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.chat-button-pulse {
+  animation: pulse 2s infinite;
+}

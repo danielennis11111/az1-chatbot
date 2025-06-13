@@ -41,7 +41,7 @@ const CONVERSATION_STARTERS = [
 
 const INITIAL_MESSAGES: Message[] = []
 
-export function Chat() {
+export function Chat({ embedMode = false }: { embedMode?: boolean }) {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -261,7 +261,7 @@ export function Chat() {
 
   if (consentStatus === 'pending') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] p-6 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl shadow-xl">
+      <div className={`flex flex-col items-center justify-center ${embedMode ? 'min-h-full' : 'min-h-[500px]'} p-6 bg-gradient-to-br from-blue-50 to-indigo-100 ${!embedMode && 'rounded-2xl shadow-xl'}`}>
         <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6">
           <UserIcon className="w-8 h-8 text-white" />
         </div>
@@ -306,23 +306,25 @@ export function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-[700px] bg-white rounded-2xl shadow-xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 md:p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-        <div className="flex items-center">
-          <MessageCircle className="w-6 h-6 mr-3" />
-          <div>
-            <h2 className="text-lg font-semibold">Arizona Digital Navigator</h2>
-            <p className="text-sm text-blue-100">Your guide to digital literacy & broadband</p>
+    <div className={`flex flex-col ${embedMode ? 'h-full' : 'h-[700px]'} bg-white ${!embedMode && 'rounded-2xl shadow-xl'} overflow-hidden`}>
+      {/* Header - don't show in embed mode as we already have a header in the sidebar */}
+      {!embedMode && (
+        <div className="flex items-center justify-between p-4 md:p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <div className="flex items-center">
+            <MessageCircle className="w-6 h-6 mr-3" />
+            <div>
+              <h2 className="text-lg font-semibold">Arizona Digital Navigator</h2>
+              <p className="text-sm text-blue-100">Your guide to digital literacy & broadband</p>
+            </div>
           </div>
+          {consentStatus === 'declined' && (
+            <div className="text-xs text-blue-100 flex items-center">
+              <Info className="w-3 h-3 mr-1" />
+              Private mode
+            </div>
+          )}
         </div>
-        {consentStatus === 'declined' && (
-          <div className="text-xs text-blue-100 flex items-center">
-            <Info className="w-3 h-3 mr-1" />
-            Private mode
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Assessment Progress */}
       {isInAssessment && currentAssessment && (
