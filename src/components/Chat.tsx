@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Message, DigitalSkillsAssessment, AssessmentQuestion } from '@/types/chat'
-import { MessageCircle, Send, Loader2, AlertCircle, Info, ChartBarIcon, UserIcon } from 'lucide-react'
+import { MessageCircle, Send, Loader2, AlertCircle, Info, ChartBarIcon, UserIcon, Mic, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import { AssessmentQuestionComponent } from './AssessmentQuestion'
@@ -58,6 +58,44 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
   const [assessmentLoading, setAssessmentLoading] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [isDictating, setIsDictating] = useState(false)
+  
+  // Speech synthesis
+  const synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null
+  function speak(text: string) {
+    if (!synthesis) return
+    const utterance = new SpeechSynthesisUtterance(text)
+    const voices = synthesis.getVoices()
+    const danielVoice = voices.find(v => v.name.includes('Daniel')) || voices[0]
+    if (danielVoice) utterance.voice = danielVoice
+    utterance.rate = 1
+    utterance.pitch = 1
+    synthesis.speak(utterance)
+  }
+
+  // Speech recognition
+  const SpeechRec = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null
+  const recognition = SpeechRec ? new SpeechRec() : null
+  const startDictation = () => {
+    if (!recognition) return
+    recognition.lang = 'en-US'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.start()
+    setIsDictating(true)
+    recognition.onresult = (event: any) => {
+      setInput(event.results[0][0].transcript)
+    }
+    recognition.onend = () => setIsDictating(false)
+  }
+
+  // Auto-speak assistant messages after streaming
+  useEffect(() => {
+    const last = messages[messages.length - 1]
+    if (last && last.role === 'assistant' && !last.isStreaming) {
+      speak(last.content)
+    }
+  }, [messages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -553,6 +591,11 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
       {!isInAssessment && (
         <form onSubmit={handleSubmit} className={`p-4 md:p-6 border-t ${tailwindClasses.border.sand} ${tailwindClasses.bg.background}`}>
           <div className="flex space-x-3">
+            {/* Dictation button */}
+            <button type="button" onClick={startDictation} disabled={isLoading || isDictating} className="p-3 text-gray-600 hover:text-gray-900" aria-label="Dictate message">
+              <Mic className="w-6 h-6" />
+            </button>
+            {/* Input field */}
             <input
               type="text"
               value={input}
@@ -561,6 +604,14 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
               className={`flex-1 px-4 py-3 border ${tailwindClasses.border.sand} rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006269] focus:border-transparent transition-all`}
               disabled={isLoading || !!cooldownTime}
             />
+            {/* Play response button */}
+            <button type="button" onClick={() => {
+                const last = messages[messages.length - 1]
+                if (last?.role === 'assistant') speak(last.content)
+              }} className="p-3 text-gray-600 hover:text-gray-900" aria-label="Play response">
+              <Volume2 className="w-6 h-6" />
+            </button>
+            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading || !input.trim() || !!cooldownTime}
