@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import { AssessmentQuestionComponent } from './AssessmentQuestion'
 import { AssessmentProgress } from './AssessmentProgress'
+import { AIBrainIcon } from './AIBrainIcon'
+import { tailwindClasses } from '@/lib/theme'
 import { 
   createAssessment, 
   getNextQuestion, 
@@ -309,16 +311,16 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
     <div className={`flex flex-col ${embedMode ? 'h-full' : 'h-[700px]'} bg-white ${!embedMode && 'rounded-2xl shadow-xl'} overflow-hidden`}>
       {/* Header - don't show in embed mode as we already have a header in the sidebar */}
       {!embedMode && (
-        <div className="flex items-center justify-between p-4 md:p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <div className={`flex items-center justify-between p-4 md:p-6 border-b ${tailwindClasses.gradient.tealToLightTeal} text-white`}>
           <div className="flex items-center">
-            <MessageCircle className="w-6 h-6 mr-3" />
+            <AIBrainIcon className="w-6 h-6 mr-3" />
             <div>
               <h2 className="text-lg font-semibold">Arizona Digital Navigator</h2>
-              <p className="text-sm text-blue-100">Your guide to digital literacy & broadband</p>
+              <p className="text-sm text-white/80">Your guide to digital literacy & broadband</p>
             </div>
           </div>
           {consentStatus === 'declined' && (
-            <div className="text-xs text-blue-100 flex items-center">
+            <div className="text-xs text-white/80 flex items-center">
               <Info className="w-3 h-3 mr-1" />
               Private mode
             </div>
@@ -354,8 +356,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
         {messages.length === 0 && !isLoading && !isInAssessment ? (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ChartBarIcon className="w-10 h-10 text-white" />
+              <div className={`w-20 h-20 ${tailwindClasses.gradient.tealToLightTeal} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                <AIBrainIcon className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
                 Welcome! I'm here to help you with:
@@ -372,10 +374,10 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                   key={index}
                   onClick={() => handleStarterClick(starter.text)}
                   className={cn(
-                    "text-left p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-500/20",
+                    "text-left p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-[#006269]/20",
                     starter.category === 'assessment' 
-                      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:border-green-300 text-green-800"
-                      : "bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 text-blue-800"
+                      ? `bg-gradient-to-r from-[#DDB176]/20 to-[#F0EDE9] ${tailwindClasses.border.sand} hover:border-[#C09B56] text-[#B1591E]`
+                      : `${tailwindClasses.bg.background} hover:bg-[#E0DCD5] ${tailwindClasses.border.lightTeal} hover:${tailwindClasses.border.teal} text-[#006269]`
                   )}
                 >
                   <span className="font-medium">{starter.text}</span>
@@ -388,8 +390,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
               ))}
             </div>
             
-            <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 max-w-2xl mx-auto">
-              <p className="text-green-800 leading-relaxed">
+            <div className={`mt-8 p-6 bg-gradient-to-r from-[#A5C9CA]/20 to-[#F0EDE9] rounded-2xl ${tailwindClasses.border.teal} max-w-2xl mx-auto`}>
+              <p className={`${tailwindClasses.text.teal} leading-relaxed`}>
                 <strong>Remember:</strong> No question is too basic! I'm here to help whether you're completely new to technology or looking for advanced information. Take your time, and don't hesitate to ask for clarification.
               </p>
             </div>
@@ -407,10 +409,10 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
               >
                 <div
                   className={cn(
-                    'max-w-[85%] md:max-w-[80%] rounded-2xl p-4 md:p-5 shadow-sm',
+                    'max-w-[90%] md:max-w-[85%] rounded-2xl p-4 md:p-5 shadow-sm',
                     message.role === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-900 border border-gray-200'
+                      ? `${tailwindClasses.gradient.tealToLightTeal} text-white`
+                      : `${tailwindClasses.bg.background} text-gray-900 border ${tailwindClasses.border.sand}`
                   )}
                 >
                   <ReactMarkdown
@@ -443,8 +445,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 border border-gray-200 rounded-2xl p-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <div className={`${tailwindClasses.bg.background} ${tailwindClasses.border.sand} rounded-2xl p-4`}>
+                  <Loader2 className={`w-5 h-5 animate-spin ${tailwindClasses.text.teal}`} />
                 </div>
               </div>
             )}
@@ -453,7 +455,7 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
 
         {error && (
           <div className="flex justify-center">
-            <div className="bg-red-50 text-red-700 rounded-2xl p-4 flex items-center gap-3 max-w-[85%] md:max-w-[80%] border border-red-200">
+            <div className={`bg-[#B1591E]/10 ${tailwindClasses.text.rust} rounded-2xl p-4 flex items-center gap-3 max-w-[90%] md:max-w-[85%] ${tailwindClasses.border.rust}`}>
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <p className="text-sm leading-relaxed">{error}</p>
             </div>
@@ -464,20 +466,20 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
 
       {/* Input Form - Hidden during assessment */}
       {!isInAssessment && (
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 border-t bg-gray-50">
+        <form onSubmit={handleSubmit} className={`p-4 md:p-6 border-t ${tailwindClasses.border.sand} ${tailwindClasses.bg.background}`}>
           <div className="flex space-x-3">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={cooldownTime ? "Please wait for the cooldown period..." : "Ask about broadband, technology, or digital literacy..."}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className={`flex-1 px-4 py-3 border ${tailwindClasses.border.sand} rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006269] focus:border-transparent transition-all`}
               disabled={isLoading || !!cooldownTime}
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim() || !!cooldownTime}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+              className={`${tailwindClasses.gradient.tealToLightTeal} text-white px-6 py-3 rounded-xl hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none`}
             >
               <Send className="w-5 h-5" />
             </button>
