@@ -207,13 +207,23 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
       createdAt: new Date(),
     }
 
-    setMessages(prev => [...prev, userMessage])
+    // Create an initial empty assistant message for streaming
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: '',
+      role: 'assistant',
+      createdAt: new Date(),
+      isStreaming: true,
+    }
+
+    setMessages(prev => [...prev, userMessage, assistantMessage])
     setInput('')
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/chat', {
+      // Use streaming API
+      const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,32 +232,94 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
+      if (!response.ok || !response.body) {
         if (response.status === 429) {
+          const errorData = await response.json()
           setCooldownTime(errorData.timeToWait)
           throw new Error(errorData.message || 'Rate limit exceeded')
         }
+        const errorData = await response.json()
         throw new Error(errorData.message || `Error: ${response.status}`)
       }
 
-      const data = await response.json()
+      // Process the streaming response
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let done = false
+      let accumulatedContent = ''
 
-      const assistantMessage: Message = {
-        id: Date.now().toString(),
-        content: data.response,
-        role: 'assistant',
-        createdAt: new Date(),
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+
+        if (done) break
+
+        // Process the received chunk
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.substring(6)
+            
+            if (data === '[DONE]') {
+              // End of stream
+              break
+            }
+            
+            try {
+              const parsedData = JSON.parse(data)
+              
+              if (parsedData.error) {
+                setError(parsedData.message || 'An error occurred during streaming')
+                break
+              }
+              
+              if (parsedData.text) {
+                accumulatedContent += parsedData.text
+                
+                // Update the message with the accumulated content
+                setMessages(prev => {
+                  const updatedMessages = [...prev]
+                  const lastMessageIndex = updatedMessages.length - 1
+                  
+                  if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+                    updatedMessages[lastMessageIndex] = {
+                      ...updatedMessages[lastMessageIndex],
+                      content: accumulatedContent,
+                    }
+                  }
+                  
+                  return updatedMessages
+                })
+              }
+            } catch (e) {
+              console.error('Error parsing streaming data:', e)
+            }
+          }
+        }
       }
 
-      setMessages(prev => [...prev, assistantMessage])
-
-      if (data.remainingRequests && data.remainingRequests < 10) {
-        setError(`Note: Only ${data.remainingRequests} requests remaining in this hour.`)
-      }
+      // Mark streaming as complete
+      setMessages(prev => {
+        const updatedMessages = [...prev]
+        const lastMessageIndex = updatedMessages.length - 1
+        
+        if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+          updatedMessages[lastMessageIndex] = {
+            ...updatedMessages[lastMessageIndex],
+            isStreaming: false,
+          }
+        }
+        
+        return updatedMessages
+      })
     } catch (error) {
       console.error('Error:', error)
       setError(error instanceof Error ? error.message : 'An error occurred. Please try again.')
+      
+      // Remove the streaming message if there was an error
+      setMessages(prev => prev.filter(msg => !msg.isStreaming))
     } finally {
       setIsLoading(false)
     }
@@ -425,7 +497,7 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                           rel="noopener noreferrer" 
                           className={cn(
                             "underline hover:no-underline transition-all",
-                            message.role === 'user' ? "text-blue-100" : "text-blue-600"
+                            message.role === 'user' ? "text-blue-100" : `${tailwindClasses.text.teal}`
                           )}
                         >
                           {children}
@@ -440,16 +512,20 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                   >
                     {message.content}
                   </ReactMarkdown>
+                  
+                  {message.isStreaming && (
+                    <div className="flex items-center mt-2">
+                      <div className="flex space-x-1">
+                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '0ms' }}></div>
+                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '300ms' }}></div>
+                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '600ms' }}></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className={`${tailwindClasses.bg.background} ${tailwindClasses.border.sand} rounded-2xl p-4`}>
-                  <Loader2 className={`w-5 h-5 animate-spin ${tailwindClasses.text.teal}`} />
-                </div>
-              </div>
-            )}
+            {/* Loading indicator removed since we're using streaming now */}
           </>
         ) : null}
 

@@ -3,6 +3,7 @@ export interface Message {
   content: string
   role: 'user' | 'assistant'
   createdAt: Date
+  isStreaming?: boolean
 }
 
 export interface ConsentRequest {

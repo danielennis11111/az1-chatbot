@@ -4,6 +4,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { enhancePromptWithRAG } from './rag'
 import { getRecommendedResources, searchResources } from './resources'
 import { Resource } from '@/types/chat'
+import { RateLimiter } from './rateLimit'
 
 if (!process.env.GEMINI_API_KEY) {
   throw new Error('Missing Gemini API key')
@@ -20,12 +21,15 @@ const SYSTEM_PROMPT = `Chatbot Persona:
 Role: Humble, helpful digital navigator and broadband equity specialist for the az-1.info website. You are an educational assistant helping anyone learn about broadband and digital equity, with a special focus on serving people who may have little to no knowledge of computers, technology, or how the internet works.
 
 Tone: 
+- Conversational, warm, and human-like
 - Extra patient, thoughtful, and respectful 
 - Use simple, clear language avoiding technical jargon
 - Never assume technical knowledge
-- Explain concepts step-by-step when needed
+- Explain concepts step-by-step when needed, breaking down complex ideas into simple parts
+- Use short paragraphs and sentences for readability
 - If users get upset or frustrated, remain kind and respectful - they may not know how to communicate with AI
 - Be humble about your capabilities while being maximally helpful
+- Use a friendly, approachable tone like you're having a conversation
 
 Core Knowledge Areas:
 
@@ -254,4 +258,174 @@ export async function getChatResponse(messages: { role: string; content: string 
     console.error('Gemini API Error:', error)
     throw error
   }
+}
+
+/**
+ * Stream chat response using Gemini API
+ */
+export async function streamChatResponse(messages: { role: string; content: string }[]) {
+  const encoder = new TextEncoder()
+  
+  async function* makeGenerator() {
+    try {
+      // Set up the model with streaming
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME,
+        generationConfig: {
+          maxOutputTokens: 1200,
+          temperature: 0.8, // Slightly higher temperature for more conversational responses
+        }
+      })
+
+      // Extract the user's messages
+      const userMessages = messages.filter(msg => msg.role === 'user')
+      if (userMessages.length === 0) {
+        yield encoder.encode("data: " + JSON.stringify({
+          text: "I'm here to help you with questions about broadband, digital literacy, and technology. What would you like to learn about today?"
+        }) + "\n\n")
+        return
+      }
+
+      // Get the last message from the user
+      const lastUserMessage = userMessages[userMessages.length - 1].content
+      
+      // Analyze user's skill level and emotional state
+      const skillLevel = detectSkillLevel(lastUserMessage)
+      const isFrustrated = detectUserFrustration(lastUserMessage)
+      
+      // Get recommended resources based on the message
+      const recommendedResources = getRecommendedResources(lastUserMessage, skillLevel)
+      
+      // Check if message contains keywords related to searching
+      const isSearchRelated = 
+        lastUserMessage.toLowerCase().includes('search') ||
+        lastUserMessage.toLowerCase().includes('az-1.info') ||
+        lastUserMessage.toLowerCase().includes('find information') ||
+        lastUserMessage.toLowerCase().includes('website') ||
+        lastUserMessage.toLowerCase().includes('resource')
+
+      // Try to enhance the last message with RAG if possible
+      let enhancedContent = lastUserMessage
+      try {
+        const enhancedPrompt = await enhancePromptWithRAG(lastUserMessage)
+        if (enhancedPrompt !== lastUserMessage) {
+          console.log('Enhanced prompt with RAG context')
+          enhancedContent = enhancedPrompt
+        }
+      } catch (error) {
+        console.error('Error enhancing prompt with RAG:', error)
+      }
+
+      // Build a simple conversation history
+      const conversationHistory = [
+        { role: 'user' as const, parts: [{ text: SYSTEM_PROMPT + "\n\nAdditional instructions: Be conversational and natural. Break down complex answers into simple steps. Use a friendly, human-like tone." }] },
+        { role: 'model' as const, parts: [{ text: 'I understand my role as a digital navigator and will provide patient, conversational support for users at any skill level. I\'ll break down complex concepts into simple steps and use a friendly tone.' }] }
+      ]
+
+      // Add previous messages to conversation history (keep last 6 messages for context)
+      const recentMessages = messages.slice(-6)
+      for (let i = 0; i < recentMessages.length - 1; i++) {
+        const message = recentMessages[i]
+        if (message.role === 'user') {
+          conversationHistory.push({ 
+            role: 'user' as const,
+            parts: [{ text: message.content }]
+          })
+        } else if (message.role === 'assistant') {
+          conversationHistory.push({ 
+            role: 'model' as const,
+            parts: [{ text: message.content }]
+          })
+        }
+      }
+
+      // Prepare the current user message with additional context
+      let currentPrompt = enhancedContent
+      
+      // Add skill level and emotional context
+      let contextualInfo = `\n\nContext for this response:`
+      contextualInfo += `\n- User skill level appears to be: ${skillLevel}`
+      if (isFrustrated) {
+        contextualInfo += `\n- User may be frustrated - respond with extra patience and empathy`
+      }
+      
+      // Add resource information if we have recommendations
+      if (recommendedResources.length > 0) {
+        contextualInfo += `\n- Relevant resources available to recommend:`
+        recommendedResources.forEach(resource => {
+          contextualInfo += `\n  * ${resource.title}: ${resource.description} (${resource.url})`
+        })
+        contextualInfo += `\n- Please include these resources in your response when relevant`
+      }
+      
+      // For search-related queries, add special instructions
+      if (isSearchRelated) {
+        console.log('Detected search query, adding special instructions')
+        contextualInfo += `\n- This appears to be a search or resource request - provide specific resource links and guidance`
+      }
+      
+      currentPrompt += contextualInfo
+
+      conversationHistory.push({
+        role: 'user' as const,
+        parts: [{ text: currentPrompt }]
+      })
+
+      // Generate streaming content
+      console.log('Sending to Gemini with conversation history of', conversationHistory.length, 'messages')
+      const result = await model.generateContentStream({
+        contents: conversationHistory,
+      })
+
+      let fullResponse = ""
+      
+      // Stream the response chunks
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text()
+        fullResponse += chunkText
+        yield encoder.encode("data: " + JSON.stringify({ text: chunkText }) + "\n\n")
+      }
+      
+      // If we have resources and they weren't mentioned in the response, add them
+      if (recommendedResources.length > 0 && !recommendedResources.some(r => fullResponse.includes(r.url))) {
+        let resourcesText = "\n\n**Helpful Resources:**\n"
+        recommendedResources.slice(0, 3).forEach(resource => {
+          resourcesText += `\n📚 **${resource.title}**\n`
+          resourcesText += `${resource.description}\n`
+          resourcesText += `🔗 [Visit Resource](${resource.url})\n`
+        })
+        
+        yield encoder.encode("data: " + JSON.stringify({ text: resourcesText }) + "\n\n")
+      }
+      
+      // Add warning if low on requests
+      const remainingRequests = RateLimiter.getRemainingRequests()
+      if (remainingRequests < 10) {
+        const warningMessage = `\n\n_Note: I'm getting tired. Only ${remainingRequests} requests remaining in this hour. I might need to rest soon to stay within my free usage limits._`
+        yield encoder.encode("data: " + JSON.stringify({ text: warningMessage }) + "\n\n")
+      }
+      
+      // Send the end event
+      yield encoder.encode("data: [DONE]\n\n")
+    } catch (error) {
+      console.error('Streaming Error:', error)
+      yield encoder.encode("data: " + JSON.stringify({ 
+        error: true, 
+        message: error instanceof Error ? error.message : 'An error occurred during streaming'
+      }) + "\n\n")
+      yield encoder.encode("data: [DONE]\n\n")
+    }
+  }
+  
+  return new ReadableStream({
+    async start(controller) {
+      const generator = makeGenerator()
+      
+      for await (const chunk of generator) {
+        controller.enqueue(chunk)
+      }
+      
+      controller.close()
+    }
+  })
 } 
