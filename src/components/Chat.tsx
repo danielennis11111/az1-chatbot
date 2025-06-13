@@ -110,6 +110,7 @@ export function Chat() {
   const handleAssessmentAnswer = async (answer: string | string[]) => {
     if (!currentAssessment || !currentQuestion) return
 
+    console.log('Processing answer:', answer, 'for question:', currentQuestion.id)
     setAssessmentLoading(true)
 
     try {
@@ -138,7 +139,9 @@ export function Chat() {
       setMessages(prev => [...prev, userMessage])
 
       // Check if assessment is complete
+      console.log('Updated assessment:', updatedAssessment)
       if (updatedAssessment.isComplete) {
+        console.log('Assessment complete!')
         setIsInAssessment(false)
         setCurrentQuestion(null)
 
@@ -155,6 +158,7 @@ export function Chat() {
       } else {
         // Get next question
         const nextQuestion = getNextQuestion(updatedAssessment)
+        console.log('Next question:', nextQuestion)
         setCurrentQuestion(nextQuestion)
 
         // Add encouraging message
@@ -336,6 +340,7 @@ export function Chat() {
         {isInAssessment && currentQuestion && (
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 md:p-8">
             <AssessmentQuestionComponent
+              key={currentQuestion.id}
               question={currentQuestion}
               onAnswer={handleAssessmentAnswer}
               isLoading={assessmentLoading}

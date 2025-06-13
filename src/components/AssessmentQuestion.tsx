@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AssessmentQuestion, AssessmentOption } from '@/types/chat'
 import { cn } from '@/lib/utils'
 import { ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline'
@@ -20,6 +20,12 @@ export function AssessmentQuestionComponent({
 }: AssessmentQuestionProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [hasAnswered, setHasAnswered] = useState(false)
+
+  // Reset state when question changes
+  useEffect(() => {
+    setSelectedOptions([])
+    setHasAnswered(false)
+  }, [question.id])
 
   const handleOptionSelect = (optionValue: string) => {
     if (isLoading || hasAnswered) return
