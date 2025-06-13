@@ -257,4 +257,94 @@ export function getRecommendedResources(
   )
   
   return unique.slice(0, 6)
+}
+
+/**
+ * Get resources from the content catalog based on the query
+ * This function integrates with the RAG system to find relevant resources
+ * from the content catalog PDF
+ */
+export async function getContentCatalogResources(query: string): Promise<Resource[]> {
+  try {
+    // Import dynamically to avoid circular dependencies
+    const { queryKnowledgeBase } = await import('./rag')
+    
+    // Query the knowledge base for relevant documents
+    const relevantDocs = await queryKnowledgeBase(query, 3)
+    
+    // Convert documents to resources
+    const catalogResources: Resource[] = relevantDocs
+      .filter(doc => {
+        // Only include documents from the content catalog
+        const source = doc.metadata.source || ''
+        const filename = doc.metadata.filename || ''
+        return source.includes('Content Catalog') || filename.includes('Content Catalog')
+      })
+      .map((doc, index) => {
+        // Extract information from the document
+        const content = doc.pageContent
+        
+        // Try to extract a title from the content
+        let title = 'Content Catalog Resource'
+        const titleMatch = content.match(/(?:title|resource|program):\s*([^\n.]+)/i)
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim()
+        }
+        
+        // Try to extract a URL
+        let url = 'https://az-1.info'
+        const urlMatch = content.match(/(?:https?:\/\/[^\s]+)/i)
+        if (urlMatch) {
+          url = urlMatch[0]
+        }
+        
+        return {
+          id: `catalog-${index}`,
+          title: title,
+          description: content.substring(0, 150) + '...',
+          url: url,
+          category: 'broadband',
+          audience: 'everyone',
+          tags: ['content-catalog', 'arizona', 'broadband'],
+          source: 'AZ-1 Content Catalog'
+        }
+      })
+    
+    return catalogResources
+  } catch (error) {
+    console.error('Error getting content catalog resources:', error)
+    return []
+  }
+}
+
+/**
+ * Enhanced version of getRecommendedResources that includes content catalog resources
+ */
+export async function getEnhancedRecommendedResources(
+  userMessage: string,
+  skillLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner'
+): Promise<Resource[]> {
+  // Get standard recommendations
+  const standardRecommendations = getRecommendedResources(userMessage, skillLevel)
+  
+  try {
+    // Get content catalog recommendations
+    const catalogRecommendations = await getContentCatalogResources(userMessage)
+    
+    // Combine and deduplicate (prioritize catalog resources)
+    const combined = [...catalogRecommendations]
+    
+    // Add standard recommendations that don't overlap with catalog ones
+    for (const stdRec of standardRecommendations) {
+      if (!combined.some(rec => rec.title === stdRec.title || rec.url === stdRec.url)) {
+        combined.push(stdRec)
+      }
+    }
+    
+    // Return top recommendations (max 5)
+    return combined.slice(0, 5)
+  } catch (error) {
+    console.error('Error getting enhanced recommendations:', error)
+    return standardRecommendations
+  }
 } 

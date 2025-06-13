@@ -316,15 +316,38 @@ export async function enhancePromptWithRAG(query: string): Promise<string> {
       return query
     }
     
-    const context = relevantDocs.map(doc => doc.pageContent).join('\n\n')
+    // Include source information for better citations
+    const contextWithSources = relevantDocs.map(doc => {
+      // Get source information
+      const source = doc.metadata.source || 'Unknown'
+      const filename = doc.metadata.filename || getBasename(source)
+      
+      // Format source name for citation
+      let sourceCitation = 'Unknown Source'
+      if (filename.includes('Content Catalog')) {
+        sourceCitation = 'AZ-1 Content Catalog'
+      } else if (filename.includes('Digital-Navigator-Standards')) {
+        sourceCitation = 'Digital Navigator Standards'
+      } else if (filename.includes('DN-Process-Outline')) {
+        sourceCitation = 'Digital Navigator Process Outline'
+      } else if (filename.includes('Digital-Navigator-Baseline-Job-Description')) {
+        sourceCitation = 'Digital Navigator Job Description'
+      } else if (filename.includes('Skills-Assessment')) {
+        sourceCitation = 'Digital Skills Assessment'
+      } else {
+        sourceCitation = filename
+      }
+      
+      return `Content from [${sourceCitation}]:\n${doc.pageContent}`
+    }).join('\n\n')
     
     return `
 Query: ${query}
 
 Relevant context:
-${context}
+${contextWithSources}
 
-Based on the above context, please provide a comprehensive answer to the query.
+Based on the above context, please provide a comprehensive answer to the query. Make sure to cite sources using the format [Source: Document Name] when providing specific information from the context.
 `
   } catch (error) {
     console.error('Error enhancing prompt with RAG:', error)

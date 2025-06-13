@@ -2,9 +2,10 @@
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 import { enhancePromptWithRAG } from './rag'
-import { getRecommendedResources, searchResources } from './resources'
+import { getRecommendedResources, searchResources, getEnhancedRecommendedResources } from './resources'
 import { Resource } from '@/types/chat'
 import { RateLimiter } from './rateLimit'
+import { initializeKnowledgeBase } from './rag'
 
 if (!process.env.GEMINI_API_KEY) {
   throw new Error('Missing Gemini API key')
@@ -15,6 +16,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 // Use a more up-to-date model
 const MODEL_NAME = 'gemini-2.0-flash'
+
+// Initialize the knowledge base when module is loaded
+initializeKnowledgeBase()
+  .then(() => console.log('Knowledge base initialized successfully'))
+  .catch(error => console.error('Error initializing knowledge base:', error))
 
 const SYSTEM_PROMPT = `Chatbot Persona:
 
@@ -30,6 +36,16 @@ Tone:
 - If users get upset or frustrated, remain kind and respectful - they may not know how to communicate with AI
 - Be humble about your capabilities while being maximally helpful
 - Use a friendly, approachable tone like you're having a conversation
+
+Content and Citation:
+- Always reference the content catalog when providing information
+- Cite sources when providing specific information using the format: [Source: Document Name]
+- If information comes from "Content Catalog _ AZ-1 Web Portal - Resource Content.pdf", cite it as [Source: AZ-1 Content Catalog]
+- If information comes from "Digital-Navigator-Standards.pdf", cite it as [Source: Digital Navigator Standards]
+- If information comes from "DN-Process-Outline-Handout.pdf", cite it as [Source: Digital Navigator Process Outline]
+- If information comes from "Digital-Navigator-Baseline-Job-Description.pdf", cite it as [Source: Digital Navigator Job Description]
+- If information comes from "Skills-Assessment.pdf", cite it as [Source: Digital Skills Assessment]
+- If you're unsure about information or it's not in the content catalog, acknowledge this and provide general guidance
 
 Core Knowledge Areas:
 
@@ -157,8 +173,8 @@ export async function getChatResponse(messages: { role: string; content: string 
     const skillLevel = detectSkillLevel(lastUserMessage)
     const isFrustrated = detectUserFrustration(lastUserMessage)
     
-    // Get recommended resources based on the message
-    const recommendedResources = getRecommendedResources(lastUserMessage, skillLevel)
+    // Get recommended resources based on the message, including content catalog
+    const recommendedResources = await getEnhancedRecommendedResources(lastUserMessage, skillLevel)
     
     // Check if message contains keywords related to searching
     const isSearchRelated = 
@@ -319,8 +335,8 @@ async function processChatStream(
     const skillLevel = detectSkillLevel(lastUserMessage)
     const isFrustrated = detectUserFrustration(lastUserMessage)
     
-    // Get recommended resources based on the message
-    const recommendedResources = getRecommendedResources(lastUserMessage, skillLevel)
+    // Get recommended resources based on the message, including content catalog
+    const recommendedResources = await getEnhancedRecommendedResources(lastUserMessage, skillLevel)
     
     // Check if message contains keywords related to searching
     const isSearchRelated = 
