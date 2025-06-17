@@ -1,0 +1,167 @@
+Okay, let's outline a plan to build your public AI chatbot using MyAI Builder. Here's a breakdown of the steps and some suggestions:
+
+1. Project Setup and Model Selection:
+
+Create a new project in MyAI Builder.
+Choose a Model: You mentioned Gemini 2.5 Flash, but it seems like that is not an available model. Gemini 2 Flash Pro balances speed with deeper task understanding. Consider using the Model Comparison tool to test different models with sample prompts related to your use case to see which provides the best results.
+2. Knowledge Base Integration:
+
+Manage Knowledge Base: Upload documentation, FAQs, and any relevant resources about Experience Builder, ArcGIS data layers, broadband availability, access, equity, device usage, and planning. You can also add URLs to relevant online resources.
+3. Custom Instructions (System Prompt):
+
+Craft a detailed system prompt to guide the chatbot's behavior. Here's a starting point:
+
+You are a helpful AI chatbot on the website az-1.info. Your purpose is to answer user questions about how to use an embedded map from Experience Builder, ArcGIS data layers, and provide information about broadband availability, access, and equity around device usage, and planning in general.
+
+- Prioritize answering questions based on the information provided in the uploaded documents.
+- If a question cannot be answered using the provided documents, inform the user that the information is not available.
+- Maintain a friendly and professional tone.
+4. User Interface (UI) Configuration:
+
+Advanced Tab > Interface - UI Builder:
+Title: Set an appropriate title (e.g., "AZ-1 Broadband Information Chatbot").
+Subtitle: Add a subtitle for context (e.g., "Get help with maps, data, and broadband planning").
+Input box text: "Ask your question about maps, data, or broadband planning..."
+Disclaimer message: Include a disclaimer about data usage and privacy.
+5. Consent Mechanism and Feedback:
+
+Unfortunately, MyAI Builder does not have a built-in consent button or direct email integration. You would need custom code for this functionality.
+Alternative Approach:
+Add a clear statement in the Disclaimer message about collecting chat data for improvement purposes and provide a link to your privacy policy.
+Manually review chat logs periodically.
+6. Testing and Refinement:
+
+Thoroughly test the chatbot with a variety of questions.
+Refine the system prompt and knowledge base based on user feedback and performance.
+7. Publishing:
+
+Publish project: Enable this to make the chatbot accessible on the web interface.
+App URL: Copy the URL and embed it on your website.
+Additional Tips and Considerations:
+
+Enable Assets Search: Make sure this is enabled to restrict the model to answering questions from your uploaded files.
+Enable Chat Memory: Be mindful of the cost implications.
+Conversation Starters: Use conversation starters to guide users.
+Model Comparison: Use this tool to refine your model choice.
+RAG Knowledge Base settings: recommend enabling advanced settings, navigating to the advanced tab, and modify settings in the knowledge base area of advanced settings. Chunk, Chunk Neighbor, and Document are all available to be toggled there, and top K can be adjusted to modify the number of files being index by RAG.
+Let me know if you'd like help with any of these steps in more detail!
+
+Prompt: help me create instructions in cursor to help create this project using a custom gemini api key instead of MyAI Builder: 
+
+Okay, let's outline a plan to build your public AI chatbot using MyAI Builder. Here's a breakdown of the steps and some suggestions:
+
+1. Project Setup and Model Selection:
+
+Create a new project in MyAI Builder.
+Choose a Model: You mentioned Gemini 2.5 Flash, but it seems like that is not an available model. Gemini 2 Flash Pro balances speed with deeper task understanding. Consider using the Model Comparison tool to test different models with sample prompts related to your use case to see which provides the best results.
+2. Knowledge Base Integration:
+
+Manage Knowledge Base: Upload documentation, FAQs, and any relevant resources about Experience Builder, ArcGIS data layers, broadband availability, access, equity, device usage, and planning. You can also add URLs to relevant online resources.
+3. Custom Instructions (System Prompt):
+
+Craft a detailed system prompt to guide the chatbot's behavior. Here's a starting point:
+
+You are a helpful AI chatbot on the website az-1.info. Your purpose is to answer user questions about how to use an embedded map from Experience Builder, ArcGIS data layers, and provide information about broadband availability, access, and equity around device usage, and planning in general.
+
+- Prioritize answering questions based on the information provided in the uploaded documents.
+- If a question cannot be answered using the provided documents, inform the user that the information is not available.
+- Maintain a friendly and professional tone.
+4. User Interface (UI) Configuration:
+
+Advanced Tab > Interface - UI Builder:
+Title: Set an appropriate title (e.g., "AZ-1 Broadband Information Chatbot").
+Subtitle: Add a subtitle for context (e.g., "Get help with maps, data, and broadband planning").
+Input box text: "Ask your question about maps, data, or broadband planning..."
+Disclaimer message: Include a disclaimer about data usage and privacy.
+5. Consent Mechanism and Feedback:
+
+Unfortunately, MyAI Builder does not have a built-in consent button or direct email integration. You would need custom code for this functionality.
+Alternative Approach:
+Add a clear statement in the Disclaimer message about collecting chat data for improvement purposes and provide a link to your privacy policy.
+Manually review chat logs periodically.
+6. Testing and Refinement:
+
+Thoroughly test the chatbot with a variety of questions.
+Refine the system prompt and knowledge base based on user feedback and performance.
+7. Publishing:
+
+Publish project: Enable this to make the chatbot accessible on the web interface.
+App URL: Copy the URL and embed it on your website.
+Additional Tips and Considerations:
+
+Enable Assets Search: Make sure this is enabled to restrict the model to answering questions from your uploaded files.
+Enable Chat Memory: Be mindful of the cost implications.
+Conversation Starters: Use conversation starters to guide users.
+Model Comparison: Use this tool to refine your model choice.
+RAG Knowledge Base settings: recommend enabling advanced settings, navigating to the advanced tab, and modify settings in the knowledge base area of advanced settings. Chunk, Chunk Neighbor, and Document are all available to be toggled there, and top K can be adjusted to modify the number of files being index by RAG.
+Let me know if you'd like help with any of these steps in more detail!
+Response: I'm examining your request about creating instructions in Cursor to use a custom Gemini API key instead of MyAI Builder. Let me think through this process.
+
+First, I need to understand what Cursor is - it's a code editor with AI capabilities, similar to VS Code but with integrated AI features. You want to use your own Gemini API key rather than the default AI provider in Cursor.
+
+Let me walk through how to set this up:
+
+## Setting Up Cursor with Custom Gemini API Key
+
+### Step 1: Install Cursor
+If you haven't already installed Cursor, you'll need to download it from the official website:
+```
+https://cursor.sh/
+```
+
+### Step 2: Obtain a Gemini API Key
+You'll need to get an API key from Google's AI Studio:
+```
+https://aistudio.google.com/
+```
+
+Once logged in:
+1. Navigate to "API keys" in the left sidebar
+2. Click "Create API Key"
+3. Copy your new API key to a secure location
+
+### Step 3: Configure Cursor to Use Gemini
+
+Let me think about how Cursor handles custom API configurations... Based on my understanding, Cursor allows you to configure custom AI providers through settings.
+
+Open Cursor and:
+```
+1. Go to Settings (gear icon or Ctrl+,/Cmd+,)
+2. Look for "AI Providers" or "Model Settings"
+3. Select "Add Custom Provider"
+4. Choose "Gemini" from the provider options
+5. Enter your API key in the designated field
+6. Save your settings
+```
+
+If Cursor doesn't have a direct Gemini integration yet, you might need to use their custom API configuration:
+
+```
+1. In Settings, look for "Custom AI Configuration"
+2. Enter the Gemini API endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+3. Set the authentication header: "x-goog-api-key: YOUR_API_KEY_HERE"
+4. Configure the request format to match Gemini's API requirements
+```
+
+### Step 4: Create a Project Configuration File
+
+For a more permanent setup, create a `.cursor.json` file in your project root:
+
+```json
+{
+  "aiProvider": "gemini",
+  "apiKey": "YOUR_GEMINI_API_KEY",
+  "apiEndpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+  "modelName": "gemini-pro",
+  "maxTokens": 8192
+}
+```
+
+### Step 5: Test Your Configuration
+
+Create a new file and try using Cursor's AI features:
+1. Press Ctrl+K (or your configured AI shortcut)
+2. Type a prompt like "Write a simple Python function to calculate factorial"
+3. Verify that responses are coming from Gemini
+
+Is this the kind of setup you're looking for? I can provide more specific instructions if you can share details about what you're trying to build with the Gemini API in Cursor.
