@@ -19,8 +19,8 @@ function getGenAI(): GoogleGenerativeAI {
   return genAI
 }
 
-// Use a more up-to-date model
-const MODEL_NAME = 'gemini-2.0-flash'
+// Use a more stable model
+const MODEL_NAME = 'gemini-1.5-flash'
 
 // Initialize knowledge base on demand
 let knowledgeBaseInitialized = false
@@ -103,7 +103,7 @@ export async function getChatResponse(messages: { role: string; content: string 
     const model = getGenAI().getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
-        maxOutputTokens: 1200,
+        maxOutputTokens: 800,
         temperature: 0.7,
       }
     })
@@ -150,8 +150,8 @@ export async function getChatResponse(messages: { role: string; content: string 
       { role: 'model' as const, parts: [{ text: 'Hey there! I\'m your Arizona Digital Navigator. I\'ll explain things simply and help you with anything about the internet or digital skills. How can I assist you today?' }] }
     ]
 
-    // Add previous messages to conversation history (keep last 6 messages for context)
-    const recentMessages = messages.slice(-6)
+    // Add previous messages to conversation history (keep last 4 messages for context)
+    const recentMessages = messages.slice(-4)
     for (let i = 0; i < recentMessages.length - 1; i++) {
       const message = recentMessages[i]
       if (message.role === 'user') {
@@ -262,8 +262,8 @@ async function processChatStream(
     const model = getGenAI().getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
-        maxOutputTokens: 1200,
-        temperature: 0.8, // Slightly higher temperature for more conversational responses
+        maxOutputTokens: 800,
+        temperature: 0.7,
       }
     })
 
@@ -314,8 +314,8 @@ async function processChatStream(
       { role: 'model' as const, parts: [{ text: 'I understand my role as a digital navigator and will provide patient, conversational support for users at any skill level. I\'ll break down complex concepts into simple steps and use a friendly tone.' }] }
     ]
 
-    // Add previous messages to conversation history (keep last 6 messages for context)
-    const recentMessages = messages.slice(-6)
+    // Add previous messages to conversation history (keep last 4 messages for context)
+    const recentMessages = messages.slice(-4)
     for (let i = 0; i < recentMessages.length - 1; i++) {
       const message = recentMessages[i]
       if (message.role === 'user') {

@@ -269,51 +269,188 @@ export async function getContentCatalogResources(query: string): Promise<Resourc
     // Import dynamically to avoid circular dependencies
     const { queryKnowledgeBase } = await import('./rag')
     
-    // Query the knowledge base for relevant documents
-    const relevantDocs = await queryKnowledgeBase(query, 3)
+    // Query the knowledge base for relevant documents with higher limit for content catalog
+    const relevantDocs = await queryKnowledgeBase(query, 15)
     
     // Convert documents to resources
-    const catalogResources: Resource[] = relevantDocs
+    const catalogResources: Resource[] = []
+    
+    relevantDocs
       .filter(doc => {
         // Only include documents from the content catalog
-        const source = doc.metadata.source || ''
-        const filename = doc.metadata.filename || ''
-        return source.includes('Content Catalog') || filename.includes('Content Catalog')
+        const isFromCatalog = doc.metadata.isContentCatalog || 
+                             (doc.metadata.source || '').includes('Content Catalog') || 
+                             (doc.metadata.filename || '').includes('Content Catalog')
+        return isFromCatalog
       })
-      .map((doc, index) => {
+      .forEach((doc, index) => {
         // Extract information from the document
         const content = doc.pageContent
         
-        // Try to extract a title from the content
-        let title = 'Content Catalog Resource'
-        const titleMatch = content.match(/(?:title|resource|program):\s*([^\n.]+)/i)
-        if (titleMatch && titleMatch[1]) {
-          title = titleMatch[1].trim()
-        }
+        // Try to parse multiple resources from a single chunk
+        const resourceEntries = parseResourceEntries(content)
         
-        // Try to extract a URL
-        let url = 'https://az-1.info'
-        const urlMatch = content.match(/(?:https?:\/\/[^\s]+)/i)
-        if (urlMatch) {
-          url = urlMatch[0]
-        }
-        
-        return {
-          id: `catalog-${index}`,
-          title: title,
-          description: content.substring(0, 150) + '...',
-          url: url,
-          category: 'broadband',
-          audience: 'everyone',
-          tags: ['content-catalog', 'arizona', 'broadband'],
-          source: 'AZ-1 Content Catalog'
-        }
+        resourceEntries.forEach((entry, entryIndex) => {
+          catalogResources.push({
+            id: `catalog-${index}-${entryIndex}`,
+            title: entry.title,
+            description: entry.description,
+            url: entry.url,
+            category: entry.category,
+            audience: entry.audience,
+            tags: ['content-catalog', 'arizona', 'broadband', ...entry.tags],
+            source: 'AZ-1 Content Catalog'
+          })
+        })
       })
     
-    return catalogResources
+    // Remove duplicates based on title and URL
+    const uniqueResources = catalogResources.filter((resource, index, array) => 
+      array.findIndex(r => r.title === resource.title || r.url === resource.url) === index
+    )
+    
+    console.log(`Found ${uniqueResources.length} unique resources from content catalog`)
+    
+    return uniqueResources.slice(0, 10) // Return up to 10 resources
   } catch (error) {
     console.error('Error getting content catalog resources:', error)
     return []
+  }
+}
+
+/**
+ * Parse individual resource entries from content catalog text
+ */
+function parseResourceEntries(content: string): Array<{
+  title: string;
+  description: string;
+  url: string;
+  category: Resource['category'];
+  audience: Resource['audience'];
+  tags: string[];
+}> {
+  const entries: Array<{
+    title: string;
+    description: string;
+    url: string;
+    category: Resource['category'];
+    audience: Resource['audience'];
+    tags: string[];
+  }> = []
+  
+  // Split content by potential entry boundaries
+  const lines = content.split('\n')
+  let currentEntry: string[] = []
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    
+    // Check if this looks like a new entry
+    if (trimmedLine.match(/^(Title|Resource|Program|Service|Name):/i) && currentEntry.length > 0) {
+      // Process the previous entry
+      const entryText = currentEntry.join('\n')
+      const parsed = parseSingleEntry(entryText)
+      if (parsed) entries.push(parsed)
+      
+      // Start new entry
+      currentEntry = [trimmedLine]
+    } else if (trimmedLine.length > 0) {
+      currentEntry.push(trimmedLine)
+    }
+  }
+  
+  // Process the last entry
+  if (currentEntry.length > 0) {
+    const entryText = currentEntry.join('\n')
+    const parsed = parseSingleEntry(entryText)
+    if (parsed) entries.push(parsed)
+  }
+  
+  // If no structured entries found, create one from the whole content
+  if (entries.length === 0) {
+    const parsed = parseSingleEntry(content)
+    if (parsed) entries.push(parsed)
+  }
+  
+  return entries
+}
+
+/**
+ * Parse a single resource entry from text
+ */
+function parseSingleEntry(text: string): {
+  title: string;
+  description: string;
+  url: string;
+  category: Resource['category'];
+  audience: Resource['audience'];
+  tags: string[];
+} | null {
+  if (text.trim().length < 20) return null
+  
+  // Extract title
+  let title = 'Resource from Content Catalog'
+  const titleMatch = text.match(/(?:title|resource|program|service|name):\s*([^\n]+)/i)
+  if (titleMatch) {
+    title = titleMatch[1].trim()
+  } else {
+    // Try to get first meaningful line as title
+    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    if (lines.length > 0) {
+      title = lines[0].trim().substring(0, 80)
+    }
+  }
+  
+  // Extract URL
+  let url = 'https://az-1.info'
+  const urlMatch = text.match(/(https?:\/\/[^\s\)]+)/i)
+  if (urlMatch) {
+    url = urlMatch[1]
+  }
+  
+  // Create description (use full text but limit length)
+  let description = text.replace(/(?:title|resource|program|service|name):\s*[^\n]+/i, '').trim()
+  if (description.length > 200) {
+    description = description.substring(0, 200) + '...'
+  }
+  
+  // Determine category based on content
+  let category: Resource['category'] = 'broadband'
+  const lowerText = text.toLowerCase()
+  if (lowerText.includes('digital literacy') || lowerText.includes('computer skills')) {
+    category = 'digital-literacy'
+  } else if (lowerText.includes('device') || lowerText.includes('tablet') || lowerText.includes('phone')) {
+    category = 'devices'
+  } else if (lowerText.includes('affordable') || lowerText.includes('low cost') || lowerText.includes('free')) {
+    category = 'affordability'
+  } else if (lowerText.includes('support') || lowerText.includes('help') || lowerText.includes('technical')) {
+    category = 'technical-support'
+  }
+  
+  // Determine audience
+  let audience: Resource['audience'] = 'everyone'
+  if (lowerText.includes('beginner') || lowerText.includes('senior') || lowerText.includes('basic')) {
+    audience = 'beginner'
+  } else if (lowerText.includes('advanced') || lowerText.includes('technical')) {
+    audience = 'advanced'
+  }
+  
+  // Extract tags
+  const tags: string[] = []
+  if (lowerText.includes('senior')) tags.push('seniors')
+  if (lowerText.includes('spanish') || lowerText.includes('bilingual')) tags.push('spanish')
+  if (lowerText.includes('rural')) tags.push('rural')
+  if (lowerText.includes('urban')) tags.push('urban')
+  if (lowerText.includes('free')) tags.push('free')
+  if (lowerText.includes('training')) tags.push('training')
+  
+  return {
+    title,
+    description,
+    url,
+    category,
+    audience,
+    tags
   }
 }
 

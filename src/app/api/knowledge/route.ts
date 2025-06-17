@@ -3,61 +3,52 @@ import {
   initializeKnowledgeBase, 
   saveUploadedFile, 
   addPdfFile,
-  getUploadedFiles
+  getUploadedFiles,
+  rebuildKnowledgeBase
 } from '@/lib/rag'
 
 // Initialize the knowledge base
 export async function GET() {
   try {
-    await initializeKnowledgeBase()
-    return NextResponse.json({ success: true, message: 'Knowledge base initialized' })
+    const files = await getUploadedFiles()
+    return NextResponse.json({ 
+      success: true, 
+      files,
+      message: `Found ${files.length} uploaded files` 
+    })
   } catch (error) {
-    console.error('Error initializing knowledge base:', error)
+    console.error('Error getting knowledge base status:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to initialize knowledge base' },
+      { success: false, error: 'Failed to get knowledge base status' },
       { status: 500 }
     )
   }
 }
 
 // Handle file uploads
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const formData = await req.formData()
-    const file = formData.get('file') as File
+    const { action } = await request.json()
     
-    if (!file) {
-      return NextResponse.json(
-        { success: false, error: 'No file provided' },
-        { status: 400 }
-      )
+    if (action === 'rebuild') {
+      console.log('Manual knowledge base rebuild requested')
+      await rebuildKnowledgeBase()
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Knowledge base rebuilt successfully with enhanced content catalog processing' 
+      })
+    } else {
+      console.log('Initializing knowledge base')
+      await initializeKnowledgeBase()
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Knowledge base initialized successfully' 
+      })
     }
-    
-    if (!file.name.endsWith('.pdf')) {
-      return NextResponse.json(
-        { success: false, error: 'Only PDF files are supported' },
-        { status: 400 }
-      )
-    }
-    
-    // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer())
-    
-    // Save the file
-    const filePath = await saveUploadedFile(file.name, buffer)
-    
-    // Add to knowledge base
-    await addPdfFile(filePath)
-    
-    return NextResponse.json({
-      success: true,
-      message: `File ${file.name} uploaded and added to knowledge base`,
-      file: file.name
-    })
   } catch (error) {
-    console.error('Error handling file upload:', error)
+    console.error('Error managing knowledge base:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to process file upload' },
+      { success: false, error: 'Failed to manage knowledge base' },
       { status: 500 }
     )
   }

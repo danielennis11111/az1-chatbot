@@ -9,8 +9,8 @@ import { promises as fs } from 'fs'
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
-// Use a consistent model name
-const MODEL_NAME = 'gemini-2.0-flash'
+// Use the corrected model name from gemini.ts
+const MODEL_NAME = 'gemini-1.5-flash'
 
 // Directory for storing uploaded documents - use string concatenation instead of path.join
 const UPLOADS_DIR = process.cwd() + '/uploads'
@@ -36,16 +36,50 @@ async function ensureUploadsDir() {
 }
 
 /**
- * Split text into chunks
+ * Split text into chunks with different strategies based on content type
  */
-async function splitText(text: string): Promise<string[]> {
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 100,
-  })
-  
-  const chunks = await splitter.splitText(text)
-  return chunks
+async function splitText(text: string, isContentCatalog: boolean = false): Promise<string[]> {
+  if (isContentCatalog) {
+    // For content catalog, use larger chunks to capture complete entries
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 2500,
+      chunkOverlap: 300,
+      separators: ['\n\n', '\n', '. ', ', ', ' ', ''],
+    })
+    
+    const chunks = await splitter.splitText(text)
+    
+    // Also try to split by what looks like resource entries
+    const additionalChunks: string[] = []
+    const lines = text.split('\n')
+    let currentEntry = ''
+    
+    for (const line of lines) {
+      // Detect potential start of new resource entry
+      if (line.match(/^(Title|Resource|Program|Service):/i) && currentEntry.length > 100) {
+        additionalChunks.push(currentEntry.trim())
+        currentEntry = line
+      } else {
+        currentEntry += '\n' + line
+      }
+    }
+    
+    // Add the last entry
+    if (currentEntry.trim().length > 100) {
+      additionalChunks.push(currentEntry.trim())
+    }
+    
+    // Combine both chunking strategies
+    return [...chunks, ...additionalChunks]
+  } else {
+    // Regular chunking for other documents
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1500,
+      chunkOverlap: 150,
+    })
+    
+    return await splitter.splitText(text)
+  }
 }
 
 /**
@@ -106,7 +140,12 @@ export async function getUploadedFiles(): Promise<string[]> {
  * Add a document to the knowledge base
  */
 export async function addDocument(content: string, metadata: Record<string, any> = {}): Promise<void> {
-  const chunks = await splitText(content)
+  // Detect if this is a content catalog
+  const isContentCatalog = (metadata.filename || metadata.source || '').includes('Content Catalog')
+  
+  const chunks = await splitText(content, isContentCatalog)
+  
+  console.log(`Processing ${isContentCatalog ? 'Content Catalog' : 'document'} with ${chunks.length} chunks`)
   
   // Process chunks and add embeddings
   for (let i = 0; i < chunks.length; i++) {
@@ -121,6 +160,8 @@ export async function addDocument(content: string, metadata: Record<string, any>
         metadata: {
           ...metadata,
           chunk: i,
+          totalChunks: chunks.length,
+          isContentCatalog: isContentCatalog,
           date_added: new Date().toISOString(),
           embedding: embedding, // Store the embedding with the document
         },
@@ -158,7 +199,20 @@ export async function addPdfFile(filePath: string): Promise<void> {
             data: Buffer.from(await blob.arrayBuffer()).toString('base64')
           }
         },
-        "Extract the key information and main content from this document"
+        // Enhanced prompt for better content catalog extraction
+        `Extract ALL information from this document in a structured format. 
+        
+        If this appears to be a content catalog or resource directory:
+        - Extract EVERY single resource entry, program, or service listed
+        - Include ALL details for each entry: title, description, URL, category, audience, contact info
+        - Preserve the structure and organization
+        - Don't summarize - include complete information for every row/entry
+        
+        If this is another type of document:
+        - Extract all key information, main content, and important details
+        - Maintain document structure and organization
+        
+        Format the output clearly with headers and organize related information together.`
       ])
       
       // Add the extracted content to the knowledge base
@@ -266,6 +320,10 @@ export async function queryKnowledgeBase(query: string, k: number = 5): Promise<
       return []
     }
     
+    // Check if we have content catalog documents and adjust k accordingly
+    const hasContentCatalog = documents.some(doc => doc.metadata.isContentCatalog)
+    const effectiveK = hasContentCatalog ? Math.max(k, 10) : k
+    
     // Get embedding for the query
     const queryEmbedding = await getEmbedding(query)
     
@@ -274,7 +332,7 @@ export async function queryKnowledgeBase(query: string, k: number = 5): Promise<
       console.log('Embedding failed, falling back to keyword search')
       return documents
         .filter(doc => doc.pageContent.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, k)
+        .slice(0, effectiveK)
     }
     
     // Calculate cosine similarity with all documents
@@ -284,14 +342,22 @@ export async function queryKnowledgeBase(query: string, k: number = 5): Promise<
       
       // Calculate cosine similarity
       const similarity = cosineSimilarity(queryEmbedding, docEmbedding)
-      return { doc, similarity }
+      
+      // Boost content catalog results slightly
+      const boostedSimilarity = doc.metadata.isContentCatalog ? similarity * 1.1 : similarity
+      
+      return { doc, similarity: boostedSimilarity }
     })
     
     // Sort by similarity and return top k
-    return withSimilarity
+    const results = withSimilarity
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, k)
+      .slice(0, effectiveK)
       .map(item => item.doc)
+    
+    console.log(`Found ${results.length} relevant documents (${results.filter(d => d.metadata.isContentCatalog).length} from content catalog)`)
+    
+    return results
   } catch (error) {
     console.error('Error in vector search:', error)
     // Fall back to keyword search if vector search fails
@@ -352,6 +418,36 @@ Based on the above context, please provide a comprehensive answer to the query. 
   } catch (error) {
     console.error('Error enhancing prompt with RAG:', error)
     return query // Fall back to original query
+  }
+}
+
+/**
+ * Force clear and rebuild the knowledge base with improved processing
+ */
+export async function rebuildKnowledgeBase(): Promise<void> {
+  try {
+    console.log('Rebuilding knowledge base with enhanced content catalog processing...')
+    
+    // Clear existing documents
+    documents = []
+    
+    // Add existing PDFs with enhanced processing
+    const pdfFiles = (await getUploadedFiles()).filter(file => file.endsWith('.pdf'))
+    console.log(`Found ${pdfFiles.length} PDF files to process`)
+    
+    for (const pdfFile of pdfFiles) {
+      try {
+        console.log(`Processing ${pdfFile}...`)
+        await addPdfFile(UPLOADS_DIR + '/' + pdfFile)
+      } catch (error) {
+        console.error(`Error adding PDF ${pdfFile}:`, error)
+      }
+    }
+    
+    console.log(`Knowledge base rebuilt successfully with ${documents.length} total chunks`)
+  } catch (error) {
+    console.error('Error rebuilding knowledge base:', error)
+    throw error
   }
 }
 

@@ -47,6 +47,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingStatus, setLoadingStatus] = useState<string>('')
+  const [processingStage, setProcessingStage] = useState<'input' | 'rag' | 'catalog' | 'generating' | ''>('')
   const [consentStatus, setConsentStatus] = useState<'pending' | 'accepted' | 'declined'>('pending')
   const [error, setError] = useState<string | null>(null)
   const [cooldownTime, setCooldownTime] = useState<number | null>(null)
@@ -258,6 +260,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
     setInput('')
     setIsLoading(true)
     setError(null)
+    setLoadingStatus('Processing your question...')
+    setProcessingStage('input')
 
     try {
       // Use streaming API
@@ -285,6 +289,10 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
       const decoder = new TextDecoder()
       let done = false
       let accumulatedContent = ''
+      let hasStartedGenerating = false
+
+      setLoadingStatus('Searching knowledge base...')
+      setProcessingStage('rag')
 
       while (!done) {
         const { value, done: doneReading } = await reader.read()
@@ -314,6 +322,13 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
               }
               
               if (parsedData.text) {
+                // Update loading status when we start receiving text
+                if (!hasStartedGenerating) {
+                  setLoadingStatus('Generating response...')
+                  setProcessingStage('generating')
+                  hasStartedGenerating = true
+                }
+                
                 accumulatedContent += parsedData.text
                 
                 // Update the message with the accumulated content
@@ -369,6 +384,8 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
       setMessages(prev => prev.filter(msg => !msg.isStreaming))
     } finally {
       setIsLoading(false)
+      setLoadingStatus('')
+      setProcessingStage('')
     }
   }
 
@@ -572,7 +589,55 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                 </div>
               </div>
             ))}
-            {/* Loading indicator removed since we're using streaming now */}
+            
+            {/* Enhanced Loading Indicator */}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className={`max-w-[90%] md:max-w-[85%] rounded-2xl p-4 md:p-5 shadow-sm ${tailwindClasses.bg.background} text-gray-900 border ${tailwindClasses.border.sand}`}>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex space-x-1">
+                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '0ms' }}></div>
+                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '300ms' }}></div>
+                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '600ms' }}></div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700">{loadingStatus}</p>
+                      {processingStage && (
+                        <div className="mt-2">
+                          <div className="flex items-center space-x-2 text-xs text-gray-500">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              processingStage === 'input' ? tailwindClasses.bg.teal : "bg-gray-300"
+                            )}></div>
+                            <span className={processingStage === 'input' ? tailwindClasses.text.teal : ''}>
+                              Processing input
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              processingStage === 'rag' ? tailwindClasses.bg.teal : processingStage === 'catalog' || processingStage === 'generating' ? `${tailwindClasses.bg.teal}` : "bg-gray-300"
+                            )}></div>
+                            <span className={['rag', 'catalog', 'generating'].includes(processingStage) ? tailwindClasses.text.teal : ''}>
+                              Searching content catalog
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              processingStage === 'generating' ? tailwindClasses.bg.teal : "bg-gray-300"
+                            )}></div>
+                            <span className={processingStage === 'generating' ? tailwindClasses.text.teal : ''}>
+                              Generating response
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         ) : null}
 
