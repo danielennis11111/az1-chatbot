@@ -1,5 +1,5 @@
-import { Chat } from '@/components/Chat'
-import { KnowledgeManager } from '@/components/KnowledgeManager'
+// import { Chat } from '@/components/Chat'
+// import { KnowledgeManager } from '@/components/KnowledgeManager'
 import { ChatEmbed } from '@/components/ChatEmbed'
 
 export default function Home() {

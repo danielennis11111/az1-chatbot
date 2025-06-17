@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { origin } = new URL(req.url)
   
   const embedScript = `

@@ -7,20 +7,35 @@ import { Resource } from '@/types/chat'
 import { RateLimiter } from './rateLimit'
 import { initializeKnowledgeBase } from './rag'
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error('Missing Gemini API key')
-}
+let genAI: GoogleGenerativeAI | null = null
 
-// Initialize the client with your API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+function getGenAI(): GoogleGenerativeAI {
+  if (!genAI) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('Missing Gemini API key')
+    }
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  }
+  return genAI
+}
 
 // Use a more up-to-date model
 const MODEL_NAME = 'gemini-2.0-flash'
 
-// Initialize the knowledge base when module is loaded
-initializeKnowledgeBase()
-  .then(() => console.log('Knowledge base initialized successfully'))
-  .catch(error => console.error('Error initializing knowledge base:', error))
+// Initialize knowledge base on demand
+let knowledgeBaseInitialized = false
+
+async function ensureKnowledgeBase() {
+  if (!knowledgeBaseInitialized) {
+    try {
+      await initializeKnowledgeBase()
+      knowledgeBaseInitialized = true
+      console.log('Knowledge base initialized successfully')
+    } catch (error) {
+      console.error('Error initializing knowledge base:', error)
+    }
+  }
+}
 
 const SYSTEM_PROMPT = `Chatbot Persona:
 
@@ -82,8 +97,10 @@ function detectUserFrustration(message: string): boolean {
 
 export async function getChatResponse(messages: { role: string; content: string }[]) {
   try {
+    // Ensure knowledge base is initialized
+    await ensureKnowledgeBase()
     // Simple direct approach without complex handling
-    const model = genAI.getGenerativeModel({
+    const model = getGenAI().getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
         maxOutputTokens: 1200,
@@ -239,8 +256,10 @@ async function processChatStream(
   const encoder = new TextEncoder()
   
   try {
+    // Ensure knowledge base is initialized
+    await ensureKnowledgeBase()
     // Set up the model with streaming
-    const model = genAI.getGenerativeModel({
+    const model = getGenAI().getGenerativeModel({
       model: MODEL_NAME,
       generationConfig: {
         maxOutputTokens: 1200,

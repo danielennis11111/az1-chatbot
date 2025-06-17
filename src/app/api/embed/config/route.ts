@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const domain = searchParams.get('domain')
   
   // For production, you'd validate the domain against your allowed list
