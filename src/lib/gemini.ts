@@ -19,8 +19,8 @@ function getGenAI(): GoogleGenerativeAI {
   return genAI
 }
 
-// Use a more stable model
-const MODEL_NAME = 'gemini-1.5-flash'
+// Use the latest and best model
+const MODEL_NAME = 'gemini-2.0-flash'
 
 // Initialize knowledge base on demand
 let knowledgeBaseInitialized = false

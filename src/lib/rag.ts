@@ -9,8 +9,8 @@ import { promises as fs } from 'fs'
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
-// Use the corrected model name from gemini.ts
-const MODEL_NAME = 'gemini-1.5-flash'
+// Use the latest and best model - Gemini 2.0 Flash
+const MODEL_NAME = 'gemini-2.0-flash'
 
 // Directory for storing uploaded documents - use string concatenation instead of path.join
 const UPLOADS_DIR = process.cwd() + '/uploads'
