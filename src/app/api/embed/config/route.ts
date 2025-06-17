@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const config = {
     apiEndpoint: process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3000/api/embed/stream'
-      : 'https://az-1.info/api/embed/stream',
+      : 'https://az1-chatbot-736861725983.us-central1.run.app/api/embed/stream',
     theme: {
       primaryColor: '#00797D',
       secondaryColor: '#634B7B',

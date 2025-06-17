@@ -10,8 +10,8 @@ export async function GET(req: Request) {
   
   // Configuration
   const CONFIG = {
-    apiEndpoint: '${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://az-1.info'}/api/embed/stream',
-    configEndpoint: '${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://az-1.info'}/api/embed/config',
+    apiEndpoint: '${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://az1-chatbot-736861725983.us-central1.run.app'}/api/embed/stream',
+    configEndpoint: '${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://az1-chatbot-736861725983.us-central1.run.app'}/api/embed/config',
     embedKey: '${process.env.EMBED_API_KEY || 'demo-key-123'}',
   };
 
