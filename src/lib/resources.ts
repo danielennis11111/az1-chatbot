@@ -46,26 +46,36 @@ export const RESOURCES: Resource[] = [
     source: 'FCC Broadband Map'
   },
 
-  // Affordability Programs
+  // Affordability Programs - Updated with current programs
   {
-    id: 'aff-acp-1',
-    title: 'Affordable Connectivity Program (ACP)',
-    description: 'Learn about the federal program that helps eligible households save on broadband internet service.',
-    url: 'https://www.fcc.gov/acp',
+    id: 'aff-lifeline-1',
+    title: 'Lifeline Program',
+    description: 'Federal program providing monthly discounts on phone and internet service for qualifying low-income households. Still active and accepting applications.',
+    url: 'https://www.fcc.gov/lifeline-consumers',
     category: 'affordability',
     audience: 'everyone',
-    tags: ['affordable', 'program', 'federal', 'subsidy'],
+    tags: ['affordable', 'program', 'federal', 'lifeline', 'active'],
     source: 'FCC'
   },
   {
-    id: 'aff-lowcost-1',
-    title: 'Low-Cost Internet Programs',
-    description: 'Directory of internet service providers offering discounted rates for qualifying households.',
-    url: 'https://www.internetessentials.com/',
+    id: 'aff-isp-programs-1',
+    title: 'Internet Provider Low-Cost Programs',
+    description: 'Many internet providers offer their own affordable internet programs. Check with local providers like Cox, CenturyLink, and others for current offerings.',
+    url: 'https://www.cox.com/residential/internet/cox-internet-essential.html',
     category: 'affordability',
     audience: 'everyone',
-    tags: ['low-cost', 'discount', 'qualifying'],
-    source: 'Internet Essentials'
+    tags: ['low-cost', 'discount', 'qualifying', 'cox', 'centurylink'],
+    source: 'Internet Service Providers'
+  },
+  {
+    id: 'aff-emergency-broadband-info',
+    title: 'Important: ACP Program Has Ended',
+    description: 'The Affordable Connectivity Program (ACP) ended funding in June 2024. However, the Lifeline program and provider-specific programs are still available.',
+    url: 'https://www.fcc.gov/acp',
+    category: 'affordability',
+    audience: 'everyone',
+    tags: ['acp', 'ended', 'discontinued', 'lifeline', 'alternatives'],
+    source: 'FCC'
   },
 
   // Device Help
