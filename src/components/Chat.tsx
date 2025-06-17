@@ -376,6 +376,13 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
         
         return updatedMessages
       })
+      
+      // Complete the progress
+      setLoadingStatus('Complete!')
+      setTimeout(() => {
+        setLoadingStatus('')
+        setProcessingStage('')
+      }, 1000)
     } catch (error) {
       console.error('Error:', error)
       setError(error instanceof Error ? error.message : 'An error occurred. Please try again.')
@@ -394,6 +401,18 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
       startAssessment()
     } else {
       setInput(starterText)
+    }
+  }
+
+  // Calculate progress percentage based on current stage
+  const getProgressPercentage = () => {
+    if (loadingStatus === 'Complete!') return 100
+    switch (processingStage) {
+      case 'input': return 25
+      case 'rag': return 50
+      case 'catalog': return 75
+      case 'generating': return 90
+      default: return 0
     }
   }
 
@@ -576,63 +595,66 @@ export function Chat({ embedMode = false }: { embedMode?: boolean }) {
                   >
                     {message.content}
                   </ReactMarkdown>
-                  
-                  {message.isStreaming && (
-                    <div className="flex items-center mt-2">
-                      <div className="flex space-x-1">
-                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '0ms' }}></div>
-                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '300ms' }}></div>
-                        <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '600ms' }}></div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
             
-            {/* Enhanced Loading Indicator */}
+            {/* Enhanced Progress Bar Loading Indicator */}
             {isLoading && (
               <div className="flex justify-start">
                 <div className={`max-w-[90%] md:max-w-[85%] rounded-2xl p-4 md:p-5 shadow-sm ${tailwindClasses.bg.background} text-gray-900 border ${tailwindClasses.border.sand}`}>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex space-x-1">
-                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '0ms' }}></div>
-                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '300ms' }}></div>
-                      <div className={`w-2 h-2 rounded-full ${tailwindClasses.bg.teal} animate-pulse`} style={{ animationDelay: '600ms' }}></div>
-                    </div>
-                    <div className="flex-1">
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <AIBrainIcon className="w-5 h-5 text-teal-600 animate-pulse" />
                       <p className="text-sm font-medium text-gray-700">{loadingStatus}</p>
-                      {processingStage && (
-                        <div className="mt-2">
-                          <div className="flex items-center space-x-2 text-xs text-gray-500">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              processingStage === 'input' ? tailwindClasses.bg.teal : "bg-gray-300"
-                            )}></div>
-                            <span className={processingStage === 'input' ? tailwindClasses.text.teal : ''}>
-                              Processing input
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              processingStage === 'rag' ? tailwindClasses.bg.teal : processingStage === 'catalog' || processingStage === 'generating' ? `${tailwindClasses.bg.teal}` : "bg-gray-300"
-                            )}></div>
-                            <span className={['rag', 'catalog', 'generating'].includes(processingStage) ? tailwindClasses.text.teal : ''}>
-                              Searching content catalog
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              processingStage === 'generating' ? tailwindClasses.bg.teal : "bg-gray-300"
-                            )}></div>
-                            <span className={processingStage === 'generating' ? tailwindClasses.text.teal : ''}>
-                              Generating response
-                            </span>
-                          </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Processing</span>
+                        <span>{getProgressPercentage()}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-500 ease-out ${tailwindClasses.gradient.tealToLightTeal}`}
+                          style={{ width: `${getProgressPercentage()}%` }}
+                        ></div>
+                      </div>
+                      
+                      {/* Stage Indicators */}
+                      <div className="flex justify-between mt-2 text-xs">
+                        <div className={cn(
+                          "flex items-center space-x-1",
+                          processingStage === 'input' ? tailwindClasses.text.teal : "text-gray-400"
+                        )}>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            processingStage === 'input' ? tailwindClasses.bg.teal : "bg-gray-300"
+                          )}></div>
+                          <span>Input</span>
                         </div>
-                      )}
+                        <div className={cn(
+                          "flex items-center space-x-1",
+                          ['rag', 'catalog'].includes(processingStage) ? tailwindClasses.text.teal : "text-gray-400"
+                        )}>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            ['rag', 'catalog'].includes(processingStage) ? tailwindClasses.bg.teal : "bg-gray-300"
+                          )}></div>
+                          <span>Search</span>
+                        </div>
+                        <div className={cn(
+                          "flex items-center space-x-1",
+                          processingStage === 'generating' ? tailwindClasses.text.teal : "text-gray-400"
+                        )}>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            processingStage === 'generating' ? tailwindClasses.bg.teal : "bg-gray-300"
+                          )}></div>
+                          <span>Generate</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
